@@ -150,6 +150,7 @@ services:
     environment:
       WORDPRESS_API_URL: http://wordpress/wp-json/wp/v2
       HOST: 0.0.0.0
+      PUBLIC_APP_URL: http://app.localhost:${LOCAL_PORT:-80}
     volumes:
       - ./marketing-site/src:/app/src
       - ./marketing-site/public:/app/public

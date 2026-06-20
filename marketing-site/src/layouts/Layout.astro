@@ -21,7 +21,7 @@ const { title, description = 'SaaSCaffold — Your product description here.' } 
       <nav>
         <a href="/">Home</a>
         <a href="/blog">Blog</a>
-        <a href="http://app.localhost">App</a>
+        <a href={import.meta.env.PUBLIC_APP_URL || 'http://app.localhost'}>App</a>
       </nav>
     </header>
     <main>

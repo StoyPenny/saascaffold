@@ -11,7 +11,7 @@ const recentPosts = posts.slice(0, 3);
   <section>
     <h1>Your SaaS Name</h1>
     <p>A short, compelling description of what your product does and who it's for.</p>
-    <a href="http://app.localhost/signup">Get started free</a>
+    <a href={`${import.meta.env.PUBLIC_APP_URL || 'http://app.localhost'}/signup`}>Get started free</a>
   </section>
 
   {recentPosts.length > 0 && (

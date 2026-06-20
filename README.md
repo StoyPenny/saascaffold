@@ -46,12 +46,14 @@ docker compose up
 
 ## Local URLs
 
-| Service | URL |
-|---|---|
-| Marketing site | http://marketing.localhost |
-| SaaS dashboard | http://app.localhost |
-| Go API | http://api.localhost |
-| WordPress admin | http://cms.localhost/wp-admin |
+Default port is `80`. If port 80 is already in use (e.g. another project), set `LOCAL_PORT=8080` in `.env`.
+
+| Service | URL (default) | URL (LOCAL_PORT=8080) |
+|---|---|---|
+| Marketing site | http://marketing.localhost | http://marketing.localhost:8080 |
+| SaaS dashboard | http://app.localhost | http://app.localhost:8080 |
+| Go API | http://api.localhost | http://api.localhost:8080 |
+| WordPress admin | http://cms.localhost/wp-admin | http://cms.localhost:8080/wp-admin |
 
 > **Safari users:** Safari doesn't auto-resolve `*.localhost`. Add these lines to `/etc/hosts`:
 > ```
@@ -63,7 +65,7 @@ docker compose up
 
 ## First-Time WordPress Setup
 
-1. Visit http://cms.localhost/wp-admin
+1. Visit http://cms.localhost/wp-admin (or with your `LOCAL_PORT`: http://cms.localhost:8080/wp-admin)
 2. Complete the WordPress 5-minute install
 3. Go to **Settings → Permalinks → Post name** (required for REST API slugs to work)
 4. Create a test post — it will appear on the marketing site automatically
