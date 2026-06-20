@@ -52,6 +52,43 @@ docker compose up -d
 
 `setup-wp.sh` installs WordPress, activates the right plugins for your chosen mode, and seeds your admin account using the `SETUP_ADMIN_*` values in `.env`. Admin credentials are printed at the end.
 
+## Using as a Boilerplate for a New Project
+
+When starting a new project with this boilerplate, it is recommended to use the **Clone and Reset Remote** approach rather than a standard GitHub fork. This allows you to keep your new SaaS project repository private (since GitHub doesn't support private forks of public repositories directly) while still making it easy to pull in future updates from the upstream boilerplate.
+
+### 1. Initialize Your New Repository
+1. Create a new, blank repository on GitHub (e.g., `my-new-saas`, which can be private). Do not initialize it with a README or `.gitignore`.
+2. Clone this boilerplate repository locally into your project's folder:
+   ```bash
+   git clone git@github.com:yourusername/saascaffold.git my-new-saas
+   cd my-new-saas
+   ```
+3. Rename the boilerplate's remote to `upstream`:
+   ```bash
+   git remote rename origin upstream
+   ```
+4. Add your new repository as the `origin` remote:
+   ```bash
+   git remote add origin git@github.com:yourusername/my-new-saas.git
+   ```
+5. Push the code to your new remote repository:
+   ```bash
+   git push -u origin main
+   ```
+
+### 2. Pulling Future Boilerplate Updates
+To pull in bug fixes, features, or updates from the main boilerplate repository:
+```bash
+git fetch upstream
+git merge upstream/main
+```
+*(Or use `git cherry-pick <commit-hash>` to bring in only specific bug fixes or improvements.)*
+
+### 3. Avoiding Conflicts
+To make pulling upstream updates as painless as possible:
+- Keep your project-specific code inside the `lastsaas` directory or custom subfolders in `wp-content/themes` and `wp-content/plugins`.
+- Use environment variables in `.env` (which is git-ignored) for configuration adjustments rather than hardcoding changes in files tracked by Git.
+
 ## Local URLs
 
 Default port is `80`. If port 80 is already in use (e.g. another project), set `LOCAL_PORT=8080` in `.env`.
