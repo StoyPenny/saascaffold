@@ -1,0 +1,31 @@
+# Local Development — HTTP only, no certificates needed.
+# Modern browsers (Chrome, Firefox) resolve *.localhost to 127.0.0.1 automatically.
+# Safari users: add entries to /etc/hosts manually (see README).
+#
+# Note: explicit http:// scheme is required to force Caddy to listen on port 80.
+# Without it, Caddy defaults to :443 even when auto_https is off.
+
+{
+    auto_https off
+}
+
+http://marketing.localhost {
+    encode zstd gzip
+    reverse_proxy astro-site:4321
+}
+
+http://app.localhost {
+    encode zstd gzip
+    reverse_proxy react-app:4280
+}
+
+http://api.localhost {
+    encode zstd gzip
+    reverse_proxy go-api:4290
+    header Cache-Control no-store
+}
+
+http://cms.localhost {
+    encode zstd gzip
+    reverse_proxy wordpress:80
+}

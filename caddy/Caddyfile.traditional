@@ -1,0 +1,28 @@
+# Local Development — Traditional WordPress theme mode.
+# marketing.localhost serves the WordPress public site directly.
+# No Astro container is started in this mode.
+
+{
+    auto_https off
+}
+
+http://marketing.localhost {
+    encode zstd gzip
+    reverse_proxy wordpress:80
+}
+
+http://app.localhost {
+    encode zstd gzip
+    reverse_proxy react-app:4280
+}
+
+http://api.localhost {
+    encode zstd gzip
+    reverse_proxy go-api:4290
+    header Cache-Control no-store
+}
+
+http://cms.localhost {
+    encode zstd gzip
+    reverse_proxy wordpress:80
+}

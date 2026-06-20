@@ -8,6 +8,7 @@
 }
 
 app.{$DOMAIN} {
+    encode zstd gzip
     reverse_proxy react-app:4280
 
     # Cache immutable Vite build assets aggressively
@@ -15,6 +16,7 @@ app.{$DOMAIN} {
 }
 
 api.{$DOMAIN} {
+    encode zstd gzip
     reverse_proxy go-api:4290
 
     # Dynamic API responses must not be cached
@@ -23,6 +25,7 @@ api.{$DOMAIN} {
 }
 
 cms.{$DOMAIN} {
+    encode zstd gzip
     reverse_proxy wordpress:80
 
     # Cloudflare Zero Trust is the primary gate for the CMS.

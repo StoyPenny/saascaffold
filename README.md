@@ -1,8 +1,12 @@
 # SaaSCaffold
 
-One-command local dev stack combining a Go + React SaaS application, an Astro marketing site, and a headless WordPress CMS — all wired together with Caddy and Docker Compose.
+One-command local dev stack combining a Go + React SaaS application, a marketing site, and WordPress — all wired together with Caddy and Docker Compose.
 
 Clone it, run setup, and have a production-grade full-stack SaaS environment running in minutes.
+
+**Choose your site architecture during setup:**
+- **Headless mode** — Astro handles the marketing site; WordPress is a headless CMS behind the scenes
+- **Traditional mode** — WordPress handles everything with a theme; no Astro container
 
 ## What's included
 
@@ -10,8 +14,8 @@ Clone it, run setup, and have a production-grade full-stack SaaS environment run
 |---|---|---|
 | **SaaS Backend** | Go 1.25 + gorilla/mux | REST API, auth, Stripe billing, multi-tenancy |
 | **SaaS Frontend** | React 19 + Vite + TypeScript | Product dashboard |
-| **Marketing Site** | Astro 5 | Static site built from WordPress content |
-| **CMS** | Headless WordPress + MariaDB | Content API for the marketing site |
+| **Marketing Site** | Astro 5 *(headless mode)* | Static site built from WordPress content |
+| **CMS** | WordPress + MariaDB | Content management (headless API or traditional theme) |
 | **Reverse Proxy** | Caddy 2 | Local subdomain routing; automatic HTTPS in production |
 | **Database** | MongoDB 7 | SaaS application data |
 
@@ -34,15 +38,19 @@ chmod +x scripts/setup.sh && ./scripts/setup.sh
 
 The setup script will:
 1. Copy `.env.example` to `.env`
-2. Initialize a git repo (if needed)
-3. Pull LastSaaS via git subtree
-4. Create a hot-reload config for the Go backend
+2. Prompt you to choose **headless + Astro** or **traditional WordPress theme** — this sets `MODE` and `COMPOSE_PROFILES` in `.env` so Docker Compose knows which containers to start
+3. Initialize a git repo (if needed)
+4. Pull LastSaaS via git subtree
+5. Create a hot-reload config for the Go backend
 
 Then edit `.env` with your API keys and start everything:
 
 ```bash
-docker compose up
+docker compose up -d
+./scripts/setup-wp.sh
 ```
+
+`setup-wp.sh` installs WordPress, activates the right plugins for your chosen mode, and seeds your admin account using the `SETUP_ADMIN_*` values in `.env`. Admin credentials are printed at the end.
 
 ## Local URLs
 
@@ -63,12 +71,63 @@ Default port is `80`. If port 80 is already in use (e.g. another project), set `
 > 127.0.0.1  cms.localhost
 > ```
 
-## First-Time WordPress Setup
+## First-Time Setup
 
-1. Visit http://cms.localhost/wp-admin (or with your `LOCAL_PORT`: http://cms.localhost:8080/wp-admin)
-2. Complete the WordPress 5-minute install
-3. Go to **Settings → Permalinks → Post name** (required for REST API slugs to work)
-4. Create a test post — it will appear on the marketing site automatically
+`./scripts/setup-wp.sh` handles everything after `docker compose up -d`:
+
+- Installs WordPress core if not already installed
+- Installs and activates plugins for your chosen mode (headless or traditional)
+- In **headless mode**: prompts for REST or GraphQL, copies the matching Astro WordPress client, configures CORS and frontend redirects
+- In **traditional mode**: activates a default theme, skips headless-only plugins
+- Seeds your app admin account (email/password come from `SETUP_ADMIN_*` in `.env`)
+
+**To change the default admin credentials**, edit these in `.env` before running the script:
+```
+SETUP_ADMIN_EMAIL=you@yourcompany.com
+SETUP_ADMIN_PASSWORD=YourSecurePassword1!
+```
+
+The script is idempotent — WordPress install and the admin account seed are both skipped if already done, so it's safe to re-run.
+
+## Headless WordPress & SEO Integration
+
+SaaSCaffold is configured to use **SEOPress** for search engine optimization. It operates in two modes depending on what you selected during `./scripts/setup-wp.sh`:
+
+### A. REST API Mode (Default)
+Astro queries the `/wp-json/wp/v2` endpoints. SEOPress automatically appends the `seopress_meta` object to the post response object.
+You can access it directly inside your Astro layouts or page templates:
+```typescript
+const title = post.seopress_meta.title;
+const description = post.seopress_meta.description;
+const canonicalUrl = post.seopress_meta.canonical;
+const ogTitle = post.seopress_meta.opengraph_title;
+const noIndex = post.seopress_meta.robots_index === 'noindex';
+```
+
+### B. GraphQL Mode
+If you chose GraphQL, the `wp-graphql` and `wp-graphql-seopress` plugins are active. You can retrieve SEO properties in a single round-trip query:
+```graphql
+query GetPostBySlug($slug: ID!) {
+  post(id: $slug, idType: SLUG) {
+    title
+    content
+    seo {
+      title
+      metaDesc
+      canonical
+      metaRobotsNoindex
+      opengraphTitle
+      opengraphDescription
+    }
+  }
+}
+```
+
+### C. Redirects in a Headless Setup
+Because visitors directly access your Astro frontend, WordPress redirects do not trigger for public traffic. 
+
+*   **Vanity & Marketing Redirects:** Manage these at the frontend level. Add them to Astro's `astro.config.mjs` `redirects` configuration (for local development) or configure them directly via **Cloudflare Redirect Rules** in production for maximum edge performance.
+*   **CMS Safety Net:** The custom `saas-headless-helper` plugin automatically forwards any crawler or legacy traffic landing directly on the CMS domain (e.g., `cms.yoursite.com/some-page`) to the corresponding page on the Astro site (`yoursite.com/some-page`).
 
 ## Environment Variables
 
@@ -139,19 +198,21 @@ For the Astro site: connect `marketing-site/` to DigitalOcean App Platform (free
 ```
 saascaffold/
 ├── caddy/
-│   ├── Caddyfile.dev        # Local dev routing (HTTP, *.localhost)
-│   └── Caddyfile            # Production (HTTPS, env var domains)
-├── lastsaas/                # LastSaaS git subtree (Go API + React)
-├── marketing-site/          # Astro marketing site
-│   └── src/lib/wordpress.ts # WordPress API integration
+│   ├── Caddyfile.headless    # Dev routing: marketing → Astro
+│   ├── Caddyfile.traditional # Dev routing: marketing → WordPress
+│   └── Caddyfile             # Production (HTTPS, env var domains)
+├── lastsaas/                 # LastSaaS git subtree (Go API + React)
+├── marketing-site/           # Astro marketing site (headless mode only)
+│   └── src/lib/wordpress.ts  # WordPress API client (copied by setup-wp.sh)
 ├── scripts/
-│   ├── setup.sh             # First-time setup
-│   └── update-lastsaas.sh   # Pull upstream LastSaaS updates
-├── Dockerfile.go-api-dev    # Go backend with Air hot reload
-├── Dockerfile.react-dev     # React frontend with Vite
-├── docker-compose.yml       # Local development
-├── docker-compose.prod.yml  # Production reference
-└── .env.example             # All environment variables documented
+│   ├── setup.sh              # First-time setup (mode choice, .env, git, subtree)
+│   ├── setup-wp.sh           # Post-startup init (WP, plugins, admin account)
+│   └── update-lastsaas.sh    # Pull upstream LastSaaS updates
+├── Dockerfile.go-api-dev     # Go backend with Air hot reload
+├── Dockerfile.react-dev      # React frontend with Vite
+├── docker-compose.yml        # Local development
+├── docker-compose.prod.yml   # Production reference
+└── .env.example              # All environment variables documented
 ```
 
 ## License

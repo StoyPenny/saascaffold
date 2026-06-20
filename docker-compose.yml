@@ -67,8 +67,15 @@ services:
         define('WP_HOME', 'http://cms.localhost:${LOCAL_PORT:-80}');
         define('WP_SITEURL', 'http://cms.localhost:${LOCAL_PORT:-80}');
         define('WP_ENVIRONMENT_TYPE', 'local');
+        define('WP_POST_REVISIONS', 5); // Limit post revisions to prevent database bloat
+        define('AUTOSAVE_INTERVAL', 180); // Autosave interval in seconds (default is 60)
+        define('DISALLOW_FILE_EDIT', true); // Disable theme/plugin file editors for security and clutter reduction
+        define('WP_MEMORY_LIMIT', '256M'); // Increase PHP memory limit for API operations
+        define('WP_MAX_MEMORY_LIMIT', '512M');
     volumes:
       - saascaffold_wp_uploads:/var/www/html/wp-content/uploads
+      - saascaffold_wp_plugins:/var/www/html/wp-content/plugins
+      - ./wp-content/plugins/saas-headless-helper:/var/www/html/wp-content/plugins/saas-headless-helper
     networks:
       - saascaffold-net
 
@@ -144,11 +151,12 @@ services:
       context: ./marketing-site
       dockerfile: Dockerfile.dev
     container_name: saascaffold-astro
+    profiles: ["headless"]
     restart: unless-stopped
     depends_on:
       - wordpress
     environment:
-      WORDPRESS_API_URL: http://wordpress/wp-json/wp/v2
+      WORDPRESS_API_URL: ${WORDPRESS_API_URL:-http://wordpress/wp-json/wp/v2}
       HOST: 0.0.0.0
       PUBLIC_APP_URL: http://app.localhost:${LOCAL_PORT:-80}
     volumes:
@@ -169,13 +177,12 @@ services:
     ports:
       - "${LOCAL_PORT:-80}:80"
     volumes:
-      - ./caddy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - ./caddy/Caddyfile.${MODE:-headless}:/etc/caddy/Caddyfile:ro
       - saascaffold_caddy_data:/data
       - saascaffold_caddy_config:/config
     depends_on:
       - go-api
       - react-app
-      - astro-site
       - wordpress
     networks:
       - saascaffold-net
@@ -188,6 +195,7 @@ volumes:
   saascaffold_mongo_data:
   saascaffold_wp_db_data:
   saascaffold_wp_uploads:
+  saascaffold_wp_plugins:
   saascaffold_caddy_data:
   saascaffold_caddy_config:
   saascaffold_react_node_modules:

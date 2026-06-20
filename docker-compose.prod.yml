@@ -50,8 +50,16 @@ services:
       WORDPRESS_CONFIG_EXTRA: |
         define('WP_HOME', 'https://cms.${DOMAIN}');
         define('WP_SITEURL', 'https://cms.${DOMAIN}');
+        define('WP_POST_REVISIONS', 5); // Limit post revisions to prevent database bloat
+        define('AUTOSAVE_INTERVAL', 180); // Autosave interval in seconds (default is 60)
+        define('DISALLOW_FILE_EDIT', true); // Disable theme/plugin file editors for security and clutter reduction
+        define('WP_MEMORY_LIMIT', '256M'); // Increase PHP memory limit for API operations
+        define('WP_MAX_MEMORY_LIMIT', '512M');
+        define('FORCE_SSL_ADMIN', true); // Force SSL for admin dashboard in production
     volumes:
       - saascaffold_wp_uploads:/var/www/html/wp-content/uploads
+      - saascaffold_wp_plugins:/var/www/html/wp-content/plugins
+      - ./wp-content/plugins/saas-headless-helper:/var/www/html/wp-content/plugins/saas-headless-helper
     networks:
       - saascaffold-net
 
@@ -103,5 +111,6 @@ volumes:
   saascaffold_mongo_data:
   saascaffold_wp_db_data:
   saascaffold_wp_uploads:
+  saascaffold_wp_plugins:
   saascaffold_caddy_data:
   saascaffold_caddy_config:
