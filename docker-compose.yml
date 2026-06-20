@@ -86,16 +86,31 @@ services:
       mongo:
         condition: service_healthy
     environment:
+      LASTSAAS_ENV: dev
       MONGODB_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-changeme}@mongo:27017/${MONGO_DB_NAME:-lastsaas}?authSource=admin
+      DATABASE_NAME: ${MONGO_DB_NAME:-lastsaas}
+      SERVER_HOST: 0.0.0.0
       SERVER_PORT: 4290
-      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-in-prod}
+      FRONTEND_URL: http://app.localhost
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-in-prod}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-in-prod}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
+      FROM_EMAIL: ${FROM_EMAIL:-noreply@yourdomain.com}
+      FROM_NAME: ${FROM_NAME:-SaaSCaffold}
+      APP_NAME: ${APP_NAME:-SaaSCaffold}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      APP_ENV: development
+      GOOGLE_REDIRECT_URL: http://api.localhost/api/auth/google/callback
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_REDIRECT_URL: http://api.localhost/api/auth/github/callback
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+      MICROSOFT_REDIRECT_URL: http://api.localhost/api/auth/microsoft/callback
+      WEBHOOK_ENCRYPTION_KEY: ${WEBHOOK_ENCRYPTION_KEY:-}
     volumes:
       - ./lastsaas/backend:/app
     networks:
@@ -108,7 +123,10 @@ services:
     container_name: saascaffold-react-app
     restart: unless-stopped
     environment:
-      VITE_API_URL: http://api.localhost
+      # VITE_API_URL is used by Vite's dev server proxy (server-side),
+      # so it must use the internal Docker service name, not the Caddy subdomain.
+      VITE_API_URL: http://go-api:4290
+      VITE_PORT: 4280
     volumes:
       - ./lastsaas/frontend:/app
       # Named volume takes precedence over the bind mount above for node_modules,

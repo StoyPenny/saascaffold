@@ -1,0 +1,9 @@
+[build]
+  cmd = "go build -o /tmp/saascaffold-server ./cmd/server/main.go"
+  bin = "/tmp/saascaffold-server"
+  include_ext = ["go", "yaml"]
+  exclude_dir = ["vendor", "tmp"]
+  delay = 500
+
+[log]
+  time = false

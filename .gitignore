@@ -11,6 +11,9 @@ dist/
 # Go
 lastsaas/backend/tmp/
 lastsaas/backend/server
+# LastSaaS config with real values (dev.example.yaml is the committed template)
+lastsaas/backend/config/dev.yaml
+lastsaas/backend/config/prod.yaml
 
 # Docker
 .docker-data/

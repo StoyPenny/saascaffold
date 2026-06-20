@@ -60,6 +60,14 @@ else
 fi
 echo ""
 
+# Copy LastSaaS dev config if it doesn't exist yet
+DEV_CONFIG="$ROOT_DIR/lastsaas/backend/config/dev.yaml"
+DEV_EXAMPLE="$ROOT_DIR/lastsaas/backend/config/dev.example.yaml"
+if [ -f "$DEV_EXAMPLE" ] && [ ! -f "$DEV_CONFIG" ]; then
+  cp "$DEV_EXAMPLE" "$DEV_CONFIG"
+  echo "Created lastsaas/backend/config/dev.yaml from example"
+fi
+
 # Add LastSaaS git subtree if not already done
 if [ ! -f "$ROOT_DIR/lastsaas/go.mod" ] && [ ! -d "$ROOT_DIR/lastsaas/backend" ]; then
   echo "Pulling LastSaaS via git subtree (this may take a moment)..."
