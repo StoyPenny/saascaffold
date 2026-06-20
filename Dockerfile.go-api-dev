@@ -1,0 +1,19 @@
+FROM golang:1.25-alpine
+
+WORKDIR /app
+
+RUN go install github.com/air-verse/air@latest
+
+# Copy dependency files first for layer caching.
+# Build context is the repo root, so paths are relative to it.
+COPY lastsaas/backend/go.mod lastsaas/backend/go.sum ./
+
+RUN go mod download
+
+# Source is bind-mounted at runtime via docker-compose volumes,
+# so this COPY is only exercised on image builds without mounts (e.g. CI).
+COPY lastsaas/backend/ .
+
+EXPOSE 4290
+
+CMD ["air", "-c", ".air.toml"]

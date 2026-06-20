@@ -1,0 +1,20 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import PostCard from '../../components/PostCard.astro';
+import { getPosts } from '../../lib/wordpress';
+
+const posts = await getPosts();
+---
+
+<Layout title="Blog">
+  <h1>Blog</h1>
+  {posts.length === 0 ? (
+    <p>No posts yet. Add content in WordPress to see it here.</p>
+  ) : (
+    <div>
+      {posts.map((post) => (
+        <PostCard post={post} />
+      ))}
+    </div>
+  )}
+</Layout>

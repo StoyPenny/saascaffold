@@ -1,0 +1,28 @@
+---
+import Layout from '../layouts/Layout.astro';
+import PostCard from '../components/PostCard.astro';
+import { getPosts } from '../lib/wordpress';
+
+const posts = await getPosts();
+const recentPosts = posts.slice(0, 3);
+---
+
+<Layout title="Your SaaS — Tagline here">
+  <section>
+    <h1>Your SaaS Name</h1>
+    <p>A short, compelling description of what your product does and who it's for.</p>
+    <a href="http://app.localhost/signup">Get started free</a>
+  </section>
+
+  {recentPosts.length > 0 && (
+    <section>
+      <h2>From the blog</h2>
+      <div>
+        {recentPosts.map((post) => (
+          <PostCard post={post} />
+        ))}
+      </div>
+      <a href="/blog">View all posts</a>
+    </section>
+  )}
+</Layout>

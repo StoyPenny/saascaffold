@@ -1,0 +1,34 @@
+# Production — Automatic HTTPS via Let's Encrypt.
+# Set DOMAIN and CADDY_EMAIL in your .env before deploying.
+# Astro marketing site (yoursite.com) is NOT here — it deploys statically
+# to DigitalOcean App Platform and is served directly from their CDN.
+
+{
+    email {$CADDY_EMAIL}
+}
+
+app.{$DOMAIN} {
+    reverse_proxy react-app:4280
+
+    # Cache immutable Vite build assets aggressively
+    header /assets/* Cache-Control "public, max-age=31536000, immutable"
+}
+
+api.{$DOMAIN} {
+    reverse_proxy go-api:4290
+
+    # Dynamic API responses must not be cached
+    header Cache-Control "no-store, no-cache, must-revalidate"
+    header Pragma no-cache
+}
+
+cms.{$DOMAIN} {
+    reverse_proxy wordpress:80
+
+    # Cloudflare Zero Trust is the primary gate for the CMS.
+    # Uncomment basicauth as a local backstop if needed.
+    # Generate hash: docker run --rm caddy:2-alpine caddy hash-password --plaintext yourpassword
+    # basicauth /* {
+    #     {$CMS_USER} {$CMS_PASSWORD_HASH}
+    # }
+}

@@ -1,0 +1,24 @@
+# Local Development — HTTP only, no certificates needed.
+# Modern browsers (Chrome, Firefox) resolve *.localhost to 127.0.0.1 automatically.
+# Safari users: add entries to /etc/hosts manually (see README).
+
+{
+    auto_https off
+}
+
+marketing.localhost {
+    reverse_proxy astro-site:4321
+}
+
+app.localhost {
+    reverse_proxy react-app:4280
+}
+
+api.localhost {
+    reverse_proxy go-api:4290
+    header Cache-Control no-store
+}
+
+cms.localhost {
+    reverse_proxy wordpress:80
+}

@@ -1,0 +1,107 @@
+name: saascaffold
+
+# Production reference — deploy on a DigitalOcean Droplet.
+# Astro marketing site is NOT here — deploy it separately to DO App Platform (free static hosting).
+#
+# Usage:
+#   1. Copy .env.example to .env on the Droplet, fill in production values
+#   2. docker compose -f docker-compose.prod.yml up -d
+
+services:
+
+  mongo:
+    image: mongo:7
+    container_name: saascaffold-mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB_NAME}
+    volumes:
+      - saascaffold_mongo_data:/data/db
+    networks:
+      - saascaffold-net
+
+  wp-db:
+    image: mariadb:10.11
+    container_name: saascaffold-wp-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${WP_DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${WP_DB_NAME}
+      MYSQL_USER: ${WP_DB_USER}
+      MYSQL_PASSWORD: ${WP_DB_PASSWORD}
+    volumes:
+      - saascaffold_wp_db_data:/var/lib/mysql
+    networks:
+      - saascaffold-net
+
+  wordpress:
+    image: wordpress:latest
+    container_name: saascaffold-wordpress
+    restart: always
+    depends_on:
+      - wp-db
+    environment:
+      WORDPRESS_DB_HOST: wp-db:3306
+      WORDPRESS_DB_USER: ${WP_DB_USER}
+      WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${WP_DB_NAME}
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_HOME', 'https://cms.${DOMAIN}');
+        define('WP_SITEURL', 'https://cms.${DOMAIN}');
+    volumes:
+      - saascaffold_wp_uploads:/var/www/html/wp-content/uploads
+    networks:
+      - saascaffold-net
+
+  go-api:
+    # The upstream LastSaaS Dockerfile is a production multi-stage build.
+    # Build on the Droplet: docker compose -f docker-compose.prod.yml build go-api
+    build:
+      context: .
+      dockerfile: lastsaas/Dockerfile
+    container_name: saascaffold-go-api
+    restart: always
+    depends_on:
+      - mongo
+    environment:
+      MONGODB_URI: ${MONGODB_URI}
+      SERVER_PORT: 4290
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      APP_ENV: production
+    networks:
+      - saascaffold-net
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: saascaffold-caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - saascaffold_caddy_data:/data
+      - saascaffold_caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN}
+      CADDY_EMAIL: ${CADDY_EMAIL}
+    networks:
+      - saascaffold-net
+
+networks:
+  saascaffold-net:
+    driver: bridge
+
+volumes:
+  saascaffold_mongo_data:
+  saascaffold_wp_db_data:
+  saascaffold_wp_uploads:
+  saascaffold_caddy_data:
+  saascaffold_caddy_config:

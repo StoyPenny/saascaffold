@@ -1,0 +1,175 @@
+name: saascaffold
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # DATA LAYER
+  # ---------------------------------------------------------------------------
+
+  mongo:
+    image: mongo:7
+    container_name: saascaffold-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeme}
+      MONGO_INITDB_DATABASE: ${MONGO_DB_NAME:-lastsaas}
+    volumes:
+      - saascaffold_mongo_data:/data/db
+    networks:
+      - saascaffold-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  wp-db:
+    image: mariadb:10.11
+    container_name: saascaffold-wp-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${WP_DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${WP_DB_NAME:-wordpress}
+      MYSQL_USER: ${WP_DB_USER:-wp_user}
+      MYSQL_PASSWORD: ${WP_DB_PASSWORD:-wp_password}
+    volumes:
+      - saascaffold_wp_db_data:/var/lib/mysql
+    networks:
+      - saascaffold-net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # CMS
+  # ---------------------------------------------------------------------------
+
+  wordpress:
+    image: wordpress:latest
+    container_name: saascaffold-wordpress
+    restart: unless-stopped
+    depends_on:
+      wp-db:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_HOST: wp-db:3306
+      WORDPRESS_DB_USER: ${WP_DB_USER:-wp_user}
+      WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD:-wp_password}
+      WORDPRESS_DB_NAME: ${WP_DB_NAME:-wordpress}
+      # WP_HOME/WP_SITEURL must use the Caddy-facing URL, not the internal
+      # container name — otherwise REST API returns unreachable absolute URLs.
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_HOME', 'http://cms.localhost');
+        define('WP_SITEURL', 'http://cms.localhost');
+        define('WP_ENVIRONMENT_TYPE', 'local');
+    volumes:
+      - saascaffold_wp_uploads:/var/www/html/wp-content/uploads
+    networks:
+      - saascaffold-net
+
+  # ---------------------------------------------------------------------------
+  # LASTSAAS APP
+  # ---------------------------------------------------------------------------
+
+  go-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.go-api-dev
+    container_name: saascaffold-go-api
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGODB_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-changeme}@mongo:27017/${MONGO_DB_NAME:-lastsaas}?authSource=admin
+      SERVER_PORT: 4290
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-in-prod}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-in-prod}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      APP_ENV: development
+    volumes:
+      - ./lastsaas/backend:/app
+    networks:
+      - saascaffold-net
+
+  react-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.react-dev
+    container_name: saascaffold-react-app
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://api.localhost
+    volumes:
+      - ./lastsaas/frontend:/app
+      # Named volume takes precedence over the bind mount above for node_modules,
+      # preventing the host directory from wiping container-installed modules.
+      - saascaffold_react_node_modules:/app/node_modules
+    networks:
+      - saascaffold-net
+
+  # ---------------------------------------------------------------------------
+  # MARKETING SITE
+  # ---------------------------------------------------------------------------
+
+  astro-site:
+    build:
+      context: ./marketing-site
+      dockerfile: Dockerfile.dev
+    container_name: saascaffold-astro
+    restart: unless-stopped
+    depends_on:
+      - wordpress
+    environment:
+      WORDPRESS_API_URL: http://wordpress/wp-json/wp/v2
+      HOST: 0.0.0.0
+    volumes:
+      - ./marketing-site/src:/app/src
+      - ./marketing-site/public:/app/public
+      - saascaffold_astro_node_modules:/app/node_modules
+    networks:
+      - saascaffold-net
+
+  # ---------------------------------------------------------------------------
+  # REVERSE PROXY
+  # ---------------------------------------------------------------------------
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: saascaffold-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./caddy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - saascaffold_caddy_data:/data
+      - saascaffold_caddy_config:/config
+    depends_on:
+      - go-api
+      - react-app
+      - astro-site
+      - wordpress
+    networks:
+      - saascaffold-net
+
+networks:
+  saascaffold-net:
+    driver: bridge
+
+volumes:
+  saascaffold_mongo_data:
+  saascaffold_wp_db_data:
+  saascaffold_wp_uploads:
+  saascaffold_caddy_data:
+  saascaffold_caddy_config:
+  saascaffold_react_node_modules:
+  saascaffold_astro_node_modules:
